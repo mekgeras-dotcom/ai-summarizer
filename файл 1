@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Конспектор с загрузкой файлов</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 800px;
+            padding: 40px;
+            margin: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        h1 i {
+            color: #667eea;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .upload-area:hover {
+            background: #f8f9ff;
+            border-color: #764ba2;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .upload-text {
+            font-size: 18px;
+            color: #555;
+            margin-bottom: 10px;
+        }
+        
+        .upload-subtext {
+            color: #888;
+            font-size: 14px;
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        .or {
+            text-align: center;
+            margin: 20px 0;
+            color: #999;
+            font-weight: bold;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            resize: vertical;
+            margin-bottom: 20px;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .options {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .option-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #444;
+        }
+        
+        .checkboxes {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            font-size: 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #result {
+            margin-top: 30px;
+            display: none;
+        }
+        
+        .result-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        #summaryContent {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .file-info {
+            background: #e8f4ff;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .file-name {
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .file-size {
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-robot"></i> AI Конспектор PRO</h1>
+        <p class="subtitle">Загрузи файл или вставь текст — получи структурированный конспект с ключевыми вопросами</p>
+        
+        <!-- Область загрузки файлов -->
+        <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+            <div class="upload-icon">
+                <i class="fas fa-cloud-upload-alt"></i>
+            </div>
+            <div class="upload-text">Нажми для загрузки файла</div>
+            <div class="upload-subtext">Поддерживаются: PDF, DOCX, TXT, изображения (до 10MB)</div>
+        </div>
+        <input type="file" id="fileInput" accept=".pdf,.docx,.txt,.jpg,.jpeg,.png">
+        
+        <!-- Информация о файле -->
+        <div id="fileInfo" class="file-info" style="display: none;">
+            <i class="fas fa-file"></i>
+            <span class="file-name" id="fileName"></span>
+            <span class="file-size" id="fileSize"></span>
+        </div>
+        
+        <div class="or">ИЛИ</div>
+        
+        <!-- Текстовое поле -->
+        <textarea id="textInput" placeholder="Вставь текст для конспекта..."></textarea>
+        
+        <!-- Опции -->
+        <div class="options">
+            <div class="option-title">Настройки конспекта:</div>
+            <div class="checkboxes">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="addQuestions" checked>
+                    Добавить ключевые вопросы
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="addDefinitions" checked>
+                    Добавить определения
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="addExamples" checked>
+                    Добавить примеры
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="makeShort">
+                    Сделать краткую версию
+                </label>
+            </div>
+        </div>
+        
+        <!-- Кнопка -->
+        <button id="generateBtn" onclick="generateSummary()">
+            <i class="fas fa-magic"></i> Создать умный конспект
+        </button>
+        
+        <!-- Загрузка -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div>AI обрабатывает ваш файл... Это займет 15-30 секунд</div>
+        </div>
+        
+        <!-- Результат -->
+        <div id="result">
+            <div class="result-title">
+                <i class="fas fa-file-alt"></i> Ваш конспект готов:
+            </div>
+            <div id="summaryContent"></div>
+            <div style="margin-top: 15px;">
+                <button onclick="copyToClipboard()" style="background: #4CAF50; width: auto;">
+                    <i class="fas fa-copy"></i> Копировать
+                </button>
+                <button onclick="downloadSummary()" style="background: #2196F3; width: auto; margin-left: 10px;">
+                    <i class="fas fa-download"></i> Скачать
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Переменные
+        let currentFile = null;
+        
+        // Обработка выбора файла
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            currentFile = file;
+            
+            // Показываем информацию о файле
+            document.getElementById('fileInfo').style.display = 'flex';
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatFileSize(file.size);
+            
+            // Очищаем текстовое поле
+            document.getElementById('textInput').value = '';
+        });
+        
+        // Обработка текстового поля
+        document.getElementById('textInput').addEventListener('input', function() {
+            if (this.value.trim()) {
+                currentFile = null;
+                document.getElementById('fileInfo').style.display = 'none';
+            }
+        });
+        
+        // Основная функция
+        async function generateSummary() {
+            const textInput = document.getElementById('textInput').value.trim();
+            const file = currentFile;
+            
+            if (!textInput && !file) {
+                alert('Пожалуйста, загрузите файл или введите текст');
+                return;
+            }
+            
+            // Показываем загрузку
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('result').style.display = 'none';
+            
+            try {
+                let text = textInput;
+                
+                // Если есть файл, читаем его
+                if (file) {
+                    text = await readFile(file);
+                }
+                
+                // Собираем настройки
+                const options = {
+                    addQuestions: document.getElementById('addQuestions').checked,
+                    addDefinitions: document.getElementById('addDefinitions').checked,
+                    addExamples: document.getElementById('addExamples').checked,
+                    makeShort: document.getElementById('makeShort').checked
+                };
+                
+                // Отправляем на сервер
+                const response = await fetch('ТВОЙ_GOOGLE_APPS_SCRIPT_URL', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        text: text,
+                        options: options,
+                        fileName: file ? file.name : 'текст'
+                    }),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                // Показываем результат
+                document.getElementById('summaryContent').textContent = result.summary;
+                document.getElementById('result').style.display = 'block';
+                
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            } finally {
+                // Скрываем загрузку
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('generateBtn').disabled = false;
+            }
+        }
+        
+        // Чтение файла
+        async function readFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    if (file.type === 'application/pdf') {
+                        resolve(`[PDF файл: ${file.name}] Содержимое будет обработано на сервере`);
+                    } else if (file.type.includes('image')) {
+                        resolve(`[Изображение: ${file.name}] Текст будет распознан на сервере`);
+                    } else if (file.type.includes('document') || file.type === 'text/plain') {
+                        // Для текстовых файлов
+                        resolve(e.target.result);
+                    } else {
+                        resolve(`[Файл: ${file.name}] Тип: ${file.type}`);
+                    }
+                };
+                
+                reader.onerror = reject;
+                
+                if (file.type === 'text/plain') {
+                    reader.readAsText(file);
+                } else {
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+        
+        // Вспомогательные функции
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        function copyToClipboard() {
+            const text = document.getElementById('summaryContent').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Конспект скопирован в буфер обмена!');
+            });
+        }
+        
+        function downloadSummary() {
+            const text = document.getElementById('summaryContent').textContent;
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'конспект.md';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
