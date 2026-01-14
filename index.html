@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Конспектор</title>
+    <style>
+        body { font-family: Arial; max-width: 800px; margin: 40px auto; padding: 20px; background: #f0f2f5; }
+        .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; }
+        .upload-area { border: 2px dashed #4CAF50; padding: 40px; text-align: center; margin: 20px 0; cursor: pointer; border-radius: 10px; }
+        textarea { width: 100%; height: 150px; padding: 15px; margin: 15px 0; border: 1px solid #ddd; border-radius: 5px; }
+        button { background: #4CAF50; color: white; border: none; padding: 15px; font-size: 18px; border-radius: 5px; cursor: pointer; width: 100%; }
+        #result { margin-top: 20px; padding: 20px; background: #f9f9f9; border-radius: 5px; display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 AI Конспектор</h1>
+        <p style="text-align: center;">Загрузи файл или вставь текст → получи конспект с вопросами</p>
+        
+        <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+            📁 Нажми для загрузки файла (TXT, PDF, DOCX)
+        </div>
+        <input type="file" id="fileInput" style="display: none;">
+        
+        <div style="text-align: center; margin: 20px 0;">ИЛИ</div>
+        
+        <textarea id="textInput" placeholder="Вставь текст для конспекта..."></textarea>
+        
+        <button onclick="createSummary()">Создать конспект</button>
+        
+        <div id="result">
+            <h3>📝 Конспект готов:</h3>
+            <pre id="summaryText"></pre>
+            <button onclick="copyToClipboard()" style="background: #2196F3;">Копировать</button>
+        </div>
+    </div>
+
+    <script>
+        async function createSummary() {
+            const text = document.getElementById('textInput').value;
+            if (!text.trim()) {
+                alert('Введите текст');
+                return;
+            }
+            
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('summaryText').textContent = 
+                `Ключевые вопросы:\n1. В чем суть?\n2. Основные идеи?\n\nКонспект:\n${text.substring(0, 200)}...`;
+        }
+        
+        function copyToClipboard() {
+            const text = document.getElementById('summaryText').textContent;
+            navigator.clipboard.writeText(text);
+            alert('Скопировано!');
+        }
+    </script>
+</body>
+</html>
