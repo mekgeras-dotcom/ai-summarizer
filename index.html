@@ -148,68 +148,152 @@
     </div>
 
     <script>
-        let currentFile = null;
-        
-        // Обработка выбора файла
+        // Локальный AI для конспектов (работает без API)
+    let currentFile = null;
+
+// Обработка файла
         document.getElementById('fileInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            currentFile = file;
-            
-            // Показываем информацию
+        const file = e.target.files[0];
+        if (!file) return;
+    
+    currentFile = file;
+    
+    // Читаем текстовые файлы
+    if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('textInput').value = e.target.result;
+            document.getElementById('fileInfo').innerHTML = 
+                `📄 <strong>${file.name}</strong> загружен (${formatFileSize(file.size)})`;
             document.getElementById('fileInfo').style.display = 'block';
-            document.getElementById('fileName').textContent = file.name + ' (' + formatFileSize(file.size) + ')';
-            
-            // Очищаем текстовое поле
-            document.getElementById('textInput').value = '';
-        });
+        };
+        reader.readAsText(file);
+    } else {
+        alert('📎 Поддерживаются только TXT файлы. Скопируйте текст из файла и вставьте в поле ниже.');
+        document.getElementById('fileInfo').innerHTML = 
+            `⚠️ <strong>${file.name}</strong> — откройте файл и скопируйте текст вручную`;
+        document.getElementById('fileInfo').style.display = 'block';
+    }
+});
+
+// Создание конспекта
+function createSummary() {
+    const text = document.getElementById('textInput').value.trim();
+    
+    if (!text) {
+        alert('✏️ Введите текст для конспекта');
+        return;
+    }
+    
+    // Показываем загрузку
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('result').style.display = 'none';
+    
+    // Имитируем обработку AI (1 секунда)
+    setTimeout(() => {
+        const summary = generateLocalSummary(text);
         
-        // Основная функция
-        async function createSummary() {
-            const text = document.getElementById('textInput').value.trim();
-            
-            // Если есть файл, читаем его
-            let content = text;
-            if (currentFile) {
-                if (currentFile.type === 'text/plain') {
-                    content = await readTextFile(currentFile);
-                } else {
-                    alert('⚠️ Для файлов формата ' + currentFile.type + ' используйте текстовое поле.\n\nСовет: откройте файл на компьютере, скопируйте текст и вставьте в поле выше.');
-                    return;
-                }
-            }
-            
-            if (!content) {
-                alert('Пожалуйста, введите текст или загрузите файл');
-                return;
-            }
-            
-            // Показываем загрузку
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('result').style.display = 'none';
-            
-            // Имитация обработки (потом заменим на реальный AI)
-            setTimeout(() => {
-                // Демо-конспект (реальный будет от AI)
-                const demoSummary = `## 🔍 КЛЮЧЕВЫЕ ВОПРОСЫ:
-1. **В чем основная суть материала?**
-   - Создание AI-конспектора для автоматической обработки текстов
+        document.getElementById('summaryText').textContent = summary;
+        document.getElementById('result').style.display = 'block';
+        document.getElementById('loading').style.display = 'none';
+        
+    }, 1000);
+}
 
-2. **Какую проблему решает проект?**
-   - Экономит время на конспектирование
-   - Улучшает понимание сложных материалов
+// Локальный генератор конспектов
+function generateLocalSummary(text) {
+    // Анализируем текст
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 10);
+    const words = text.split(/\s+/).filter(w => w.length > 2);
+    const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+    
+    // Находим ключевые слова
+    const wordFrequency = {};
+    words.forEach(word => {
+        const lowerWord = word.toLowerCase();
+        wordFrequency[lowerWord] = (wordFrequency[lowerWord] || 0) + 1;
+    });
+    
+    // Топ-слов
+    const topWords = Object.entries(wordFrequency)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([word]) => word);
+    
+    // Статистика
+    const stats = {
+        chars: text.length,
+        words: words.length,
+        sentences: sentences.length,
+        paragraphs: paragraphs.length,
+        topWords: topWords
+    };
+    
+    // Создаем конспект
+    return `## 📊 СТАТИСТИКА ТЕКСТА:
+• Символов: ${stats.chars}
+• Слов: ${stats.words}
+• Предложений: ${stats.sentences}
+• Абзацев: ${stats.paragraphs}
 
-3. **Какие методы используются?**
-   - Обработка естественного языка (NLP)
-   - Глубокое обучение для анализа текста
-   - Структурирование информации
 
-4. **Где можно применить?**
-   - Образование (конспекты лекций)
-   - Исследования (анализ статей)
-   - Бизнес (краткие выжимки документов)
+${generateParagraphSummary(paragraphs)}
 
-## 📊 СТРУКТУРИРОВАННЫЙ КОНСПЕКТ:
+### Ключевые понятия:
+${stats.topWords.map(word => `• **${word}** — важный термин в тексте`).join('\n')}
 
-### Основные
+### Примерная логика изложения:
+${generateLogicFlow(paragraphs)}
+
+ь AI API (Gemini, DeepSeek и др.)*`;
+}
+
+// Вспомогательные функции
+function generateParagraphSummary(paragraphs) {
+    if (paragraphs.length === 0) return "• Текст не содержит четких абзацев";
+    
+    return paragraphs.slice(0, 5).map((para, idx) => {
+        const firstSentence = para.split(/[.!?]/)[0]?.substring(0, 80) || para.substring(0, 80);
+        return `• **Абзац ${idx + 1}:** ${firstSentence}...`;
+    }).join('\n');
+}
+
+function generateLogicFlow(paragraphs) {
+    if (paragraphs.length <= 1) return "• Материал представлен единым блоком";
+    
+    const flow = [];
+    if (paragraphs.length >= 1) flow.push("1. Введение или постановка проблемы");
+    if (paragraphs.length >= 2) flow.push("2. Основная часть с аргументами");
+    if (paragraphs.length >= 3) flow.push("3. Примеры или детализация");
+    if (paragraphs.length >= 4) flow.push("4. Заключение или выводы");
+    if (paragraphs.length > 4) flow.push(`5. ... и еще ${paragraphs.length - 4} разделов`);
+    
+    return flow.map(item => `• ${item}`).join('\n');
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' Б';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' КБ';
+    return (bytes / 1048576).toFixed(1) + ' МБ';
+}
+
+function copyToClipboard() {
+    const text = document.getElementById('summaryText').textContent;
+    navigator.clipboard.writeText(text)
+        .then(() => alert('✅ Конспект скопирован в буфер обмена!'))
+        .catch(() => alert('❌ Ошибка копирования'));
+}
+
+function downloadSummary() {
+    const text = document.getElementById('summaryText').textContent;
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'конспект_' + new Date().toLocaleDateString('ru-RU') + '.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+    </script>
