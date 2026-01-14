@@ -1,339 +1,693 @@
-// Локальный AI для конспектов (работает без API)
-let currentFile = null;
-
-// Поддерживаемые форматы
-const SUPPORTED_FORMATS = {
-    'text/plain': 'TXT',
-    'application/pdf': 'PDF',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
-    'image/jpeg': 'JPEG',
-    'image/jpg': 'JPG',
-    'image/png': 'PNG',
-    'image/gif': 'GIF'
-};
-
-// Обработка файла
-document.getElementById('fileInput').addEventListener('change', async function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    currentFile = file;
-    const fileType = SUPPORTED_FORMATS[file.type] || file.name.split('.').pop().toUpperCase();
-    
-    // Показываем информацию о файле
-    document.getElementById('fileInfo').innerHTML = 
-        `📄 <strong>${file.name}</strong> (${fileType}, ${formatFileSize(file.size)})`;
-    document.getElementById('fileInfo').style.display = 'block';
-    
-    // Очищаем текстовое поле
-    document.getElementById('textInput').value = '';
-    
-    // Показываем статус обработки
-    document.getElementById('textInput').placeholder = `Обрабатываю ${fileType} файл...`;
-    
-    try {
-        let text = '';
-        
-        // Обработка разных типов файлов
-        if (file.type === 'text/plain') {
-            // TXT файл
-            text = await readTextFile(file);
-        }
-        else if (file.type === 'application/pdf') {
-            // PDF файл
-            text = await extractTextFromPDF(file);
-        }
-        else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-            // DOCX файл
-            text = await extractTextFromDOCX(file);
-        }
-        else if (file.type.startsWith('image/')) {
-            // Изображение
-            text = await extractTextFromImage(file);
-        }
-        else {
-            // Неподдерживаемый формат
-            text = `[Файл: ${file.name}, Тип: ${fileType}]\n` +
-                   `Пожалуйста, откройте файл и скопируйте текст вручную.`;
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Конспектор - Создание структурированных конспектов</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
         
-        // Вставляем текст в поле
-        document.getElementById('textInput').value = text;
-        document.getElementById('textInput').placeholder = "Текст из файла загружен...";
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
         
-    } catch (error) {
-        console.error('Ошибка обработки файла:', error);
-        document.getElementById('textInput').value = 
-            `❌ Ошибка обработки файла ${file.name}\n` +
-            `Тип: ${file.type}\n` +
-            `Пожалуйста, откройте файл и скопируйте текст вручную.`;
-    }
-});
-
-// Чтение текстового файла
-function readTextFile(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
-        reader.onerror = reject;
-        reader.readAsText(file);
-    });
-}
-
-// Извлечение текста из PDF (упрощенная версия)
-function extractTextFromPDF(file) {
-    return new Promise((resolve) => {
-        // Для реальной обработки PDF нужны библиотеки
-        // Здесь упрощенная версия
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            resolve(`📑 PDF файл: ${file.name}\n\n` +
-                   `Для полноценной обработки PDF файлов нужно:\n` +
-                   `1. Использовать серверную обработку\n` +
-                   `2. Или конвертировать PDF в текст онлайн\n` +
-                   `3. Или скопировать текст из PDF вручную\n\n` +
-                   `Попробуйте открыть PDF и скопировать текст (Ctrl+A, Ctrl+C).`);
-        };
-        reader.readAsDataURL(file);
-    });
-}
-
-// Извлечение текста из DOCX (упрощенная версия)
-function extractTextFromDOCX(file) {
-    return new Promise((resolve) => {
-        // DOCX - это ZIP архив с XML файлами
-        // Упрощенная реализация
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            resolve(`📝 DOCX файл: ${file.name}\n\n` +
-                   `Для обработки DOCX файлов нужно:\n` +
-                   `1. Конвертировать в TXT онлайн\n` +
-                   `2. Открыть в Google Docs и скопировать текст\n` +
-                   `3. Использовать специализированные библиотеки\n\n` +
-                   `Совет: откройте файл в Word и скопируйте текст.`);
-        };
-        reader.readAsArrayBuffer(file);
-    });
-}
-
-// Извлечение текста из изображения (упрощенная версия)
-function extractTextFromImage(file) {
-    return new Promise((resolve) => {
-        // Для реального OCR нужны библиотеки (Tesseract.js)
-        // Здесь упрощенная версия
-        resolve(`🖼️ Изображение: ${file.name}\n\n` +
-               `Для распознавания текста с изображений нужно:\n` +
-               `1. Использовать OCR сервисы (Google Vision, Tesseract)\n` +
-               `2. Или загрузить фото в Google Keep/Drive для распознавания\n` +
-               `3. Или использовать мобильное приложение с OCR\n\n` +
-               `Попробуйте: Google Фото → "Копировать текст с изображения"`);
-    });
-}
-
-// Создание конспекта
-async function createSummary() {
-    const text = document.getElementById('textInput').value.trim();
-    
-    if (!text) {
-        alert('✏️ Введите текст для конспекта');
-        return;
-    }
-    
-    // Показываем загрузку
-    document.getElementById('loading').style.display = 'block';
-    document.getElementById('result').style.display = 'none';
-    
-    // Имитируем обработку AI
-    setTimeout(() => {
-        const summary = generateLocalSummary(text, currentFile);
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
         
-        document.getElementById('summaryText').textContent = summary;
-        document.getElementById('result').style.display = 'block';
-        document.getElementById('loading').style.display = 'none';
+        header {
+            background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
         
-    }, 1000);
-}
-
-// Локальный генератор конспектов (обновленная версия)
-function generateLocalSummary(text, file = null) {
-    // Анализируем текст
-    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 10);
-    const words = text.split(/\s+/).filter(w => w.length > 2);
-    const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim().length > 0);
-    
-    // Информация о файле
-    let fileInfo = '';
-    if (file) {
-        fileInfo = `\n**Файл:** ${file.name} (${formatFileSize(file.size)})`;
-    }
-    
-    // Проверяем, не является ли текст сообщением об ошибке
-    const isErrorText = text.includes('❌ Ошибка') || 
-                        text.includes('Пожалуйста') || 
-                        text.includes('скопируйте текст');
-    
-    if (isErrorText) {
-        return `## ⚠️ ФАЙЛ ЗАГРУЖЕН, НО НУЖНА РУЧНАЯ ОБРАБОТКА
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
         
-${text}
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        main {
+            padding: 30px;
+        }
+        
+        .upload-section {
+            margin-bottom: 30px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #4CAF50;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f9f9f9;
+        }
+        
+        .upload-area:hover {
+            background: #e8f5e9;
+            border-color: #2E7D32;
+            transform: translateY(-2px);
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            color: #4CAF50;
+        }
+        
+        .upload-text {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .upload-subtext {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        .file-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .or-divider {
+            text-align: center;
+            margin: 25px 0;
+            color: #666;
+            font-weight: bold;
+            position: relative;
+        }
+        
+        .or-divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #ddd;
+            z-index: 1;
+        }
+        
+        .or-text {
+            background: white;
+            padding: 0 20px;
+            position: relative;
+            z-index: 2;
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 20px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        
+        .button-container {
+            margin-top: 25px;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            font-size: 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(33, 150, 243, 0.3);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2196F3;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .result-section {
+            display: none;
+            margin-top: 30px;
+            animation: fadeIn 0.5s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .result-header {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            color: #2E7D32;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        #summaryContent {
+            background: #f5f5f5;
+            padding: 25px;
+            border-radius: 10px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            max-height: 500px;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .action-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        
+        .copy-btn {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .download-btn {
+            background: #FF9800;
+            color: white;
+        }
+        
+        .action-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        
+        footer {
+            background: #f5f5f5;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+            border-top: 1px solid #ddd;
+        }
+        
+        .format-info {
+            background: #fff3e0;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+        
+        .format-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .format-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-icon {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .status-good { background: #4CAF50; }
+        .status-warning { background: #FF9800; }
+        
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+            }
+            
+            main {
+                padding: 20px;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 AI Конспектор PRO</h1>
+            <p class="subtitle">Загрузите файл или вставьте текст → получите структурированный конспект с ключевыми вопросами</p>
+        </header>
+        
+        <main>
+            <section class="upload-section">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">Нажмите для загрузки файла</div>
+                    <div class="upload-subtext">PDF, DOCX, TXT, изображения (до 10MB)</div>
+                </div>
+                <input type="file" id="fileInput" accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.gif">
+                
+                <div class="file-info" id="fileInfo"></div>
+                
+                <div class="or-divider">
+                    <span class="or-text">ИЛИ</span>
+                </div>
+                
+                <textarea id="textInput" placeholder="Вставьте сюда текст для конспекта..."></textarea>
+                
+                <div class="format-info">
+                    <strong>📌 Поддерживаемые форматы:</strong>
+                    <div class="format-list">
+                        <div class="format-item"><span class="status-icon status-good"></span> TXT - полная обработка</div>
+                        <div class="format-item"><span class="status-icon status-warning"></span> PDF - инструкция по копированию</div>
+                        <div class="format-item"><span class="status-icon status-warning"></span> DOCX - инструкция по копированию</div>
+                        <div class="format-item"><span class="status-icon status-warning"></span> Изображения - инструкция по OCR</div>
+                    </div>
+                </div>
+            </section>
+            
+            <div class="button-container">
+                <button class="btn" id="generateBtn" onclick="createSummary()">
+                    🚀 Создать умный конспект
+                </button>
+            </div>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div>AI обрабатывает ваш запрос... Подождите 10-15 секунд</div>
+            </div>
+            
+            <section class="result-section" id="resultSection">
+                <div class="result-header">📝 Ваш конспект готов:</div>
+                <pre id="summaryContent"></pre>
+                <div class="action-buttons">
+                    <button class="action-btn copy-btn" onclick="copyToClipboard()">📋 Копировать конспект</button>
+                    <button class="action-btn download-btn" onclick="downloadSummary()">⬇️ Скачать как файл</button>
+                </div>
+            </section>
+        </main>
+        
+        <footer>
+            <p>AI Конспектор v1.0 | Работает локально | Для подключения реального AI нужен API ключ</p>
+            <p>📍 Сайт: <a href="https://mekgeras-dotcom.github.io/ai-summarizer/" target="_blank">mekgeras-dotcom.github.io/ai-summarizer</a></p>
+        </footer>
+    </div>
 
-## 🎯 ЧТО ДЕЛАТЬ ДАЛЬШЕ:
+    <script>
+        // Локальный AI для конспектов (работает без API)
+        let currentFile = null;
 
-### Для PDF файлов:
-1. Откройте PDF в браузере или Adobe Reader
-2. Выделите весь текст (Ctrl+A)
-3. Скопируйте (Ctrl+C)
-4. Вставьте в поле выше (Ctrl+V)
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('AI Конспектор загружен');
+            
+            // Настройка загрузки файлов
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            
+            uploadArea.addEventListener('click', () => fileInput.click());
+            
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            // Очистка файла при изменении текста
+            document.getElementById('textInput').addEventListener('input', function() {
+                if (this.value.trim()) {
+                    currentFile = null;
+                    document.getElementById('fileInfo').style.display = 'none';
+                }
+            });
+        });
 
-### Для DOCX файлов:
-1. Откройте файл в Microsoft Word или Google Docs
-2. Скопируйте весь текст
-3. Вставьте в поле выше
+        // Обработка выбора файла
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            currentFile = file;
+            showFileInfo(file);
+            
+            // Для TXT файлов читаем содержимое
+            if (file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt')) {
+                readTextFile(file);
+            } else {
+                showFileInstructions(file);
+            }
+        }
 
-### Для изображений:
-1. Загрузите фото в **Google Диск**
-2. Правой кнопкой → "Открыть с помощью" → "Google Документы"
-3. Текст распознается автоматически
-4. Скопируйте и вставьте сюда
+        // Показ информации о файле
+        function showFileInfo(file) {
+            const fileInfo = document.getElementById('fileInfo');
+            const fileSize = formatFileSize(file.size);
+            const fileType = getFileType(file);
+            
+            fileInfo.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="font-size: 24px;">📄</div>
+                    <div>
+                        <strong>${file.name}</strong><br>
+                        <small>${fileType} • ${fileSize}</small>
+                    </div>
+                </div>
+            `;
+            fileInfo.style.display = 'block';
+        }
 
-### Альтернативные варианты:
-• Используйте онлайн-конвертеры
-• Скопируйте текст с мобильного телефона
-• Перепечатайте ключевые фрагменты`;
-    }
-    
-    // Находим ключевые слова
-    const wordFrequency = {};
-    words.forEach(word => {
-        const lowerWord = word.toLowerCase();
-        wordFrequency[lowerWord] = (wordFrequency[lowerWord] || 0) + 1;
-    });
-    
-    // Топ-слов
-    const topWords = Object.entries(wordFrequency)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 8)
-        .map(([word]) => word);
-    
-    // Статистика
-    const stats = {
-        chars: text.length,
-        words: words.length,
-        sentences: sentences.length,
-        paragraphs: paragraphs.length,
-        topWords: topWords
-    };
-    
-    // Создаем конспект
-    return `## 📊 СТАТИСТИКА ТЕКСТА:${fileInfo}
+        // Инструкции для файлов
+        function showFileInstructions(file) {
+            const fileType = getFileType(file);
+            let instructions = '';
+            
+            if (file.type === 'application/pdf') {
+                instructions = `
+                    <div style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 5px;">
+                        <strong>📑 Инструкция для PDF:</strong><br>
+                        1. Откройте PDF в браузере<br>
+                        2. Нажмите Ctrl+A (Выделить всё)<br>
+                        3. Нажмите Ctrl+C (Копировать)<br>
+                        4. Вставьте текст в поле выше (Ctrl+V)
+                    </div>
+                `;
+            } else if (file.type.includes('document')) {
+                instructions = `
+                    <div style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 5px;">
+                        <strong>📝 Инструкция для DOCX:</strong><br>
+                        1. Откройте файл в Word или Google Docs<br>
+                        2. Выделите и скопируйте текст<br>
+                        3. Вставьте в поле выше
+                    </div>
+                `;
+            } else if (file.type.startsWith('image/')) {
+                instructions = `
+                    <div style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 5px;">
+                        <strong>🖼️ Инструкция для изображения:</strong><br>
+                        1. Загрузите фото в <a href="https://drive.google.com" target="_blank">Google Диск</a><br>
+                        2. ПКМ → "Открыть с помощью" → "Google Документы"<br>
+                        3. Текст распознается автоматически<br>
+                        4. Скопируйте и вставьте сюда
+                    </div>
+                `;
+            }
+            
+            if (instructions) {
+                document.getElementById('fileInfo').innerHTML += instructions;
+            }
+            
+            // Очищаем текстовое поле
+            document.getElementById('textInput').value = '';
+            document.getElementById('textInput').placeholder = `Загружен ${fileType} файл. Следуйте инструкциям выше.`;
+        }
+
+        // Чтение текстового файла
+        function readTextFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('textInput').value = e.target.result;
+                document.getElementById('textInput').placeholder = 'Текст из файла загружен';
+            };
+            reader.onerror = function() {
+                document.getElementById('textInput').value = 'Ошибка чтения файла';
+            };
+            reader.readAsText(file);
+        }
+
+        // Создание конспекта
+        function createSummary() {
+            const text = document.getElementById('textInput').value.trim();
+            
+            if (!text) {
+                alert('Пожалуйста, введите текст или загрузите файл');
+                return;
+            }
+            
+            // Показываем загрузку
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('resultSection').style.display = 'none';
+            
+            // Имитация обработки AI
+            setTimeout(() => {
+                const summary = generateSummary(text);
+                
+                document.getElementById('summaryContent').textContent = summary;
+                document.getElementById('resultSection').style.display = 'block';
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('generateBtn').disabled = false;
+                
+                // Прокрутка к результату
+                document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth' });
+                
+            }, 1500);
+        }
+
+        // Генерация конспекта
+        function generateSummary(text) {
+            // Анализ текста
+            const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 10);
+            const words = text.split(/\s+/).filter(w => w.length > 2);
+            const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+            
+            // Статистика
+            const stats = {
+                chars: text.length,
+                words: words.length,
+                sentences: sentences.length,
+                paragraphs: paragraphs.length
+            };
+            
+            // Ключевые слова
+            const wordFreq = {};
+            words.forEach(word => {
+                const w = word.toLowerCase();
+                if (w.length > 3) wordFreq[w] = (wordFreq[w] || 0) + 1;
+            });
+            
+            const topWords = Object.entries(wordFreq)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 6)
+                .map(([word]) => word);
+            
+            // Формирование конспекта
+            return `## 📊 АНАЛИЗ ТЕКСТА
+
+### Статистика:
 • Символов: ${stats.chars}
 • Слов: ${stats.words}
 • Предложений: ${stats.sentences}
 • Абзацев: ${stats.paragraphs}
-• Ключевые слова: ${stats.topWords.join(', ')}
+• Ключевые слова: ${topWords.join(', ')}
 
 ## 🔍 КЛЮЧЕВЫЕ ВОПРОСЫ:
 
 1. **О чем этот материал?**
-   - Основные темы: ${stats.topWords.slice(0, 3).join(', ')}
-   - Объем: ${stats.words > 500 ? 'Большой' : stats.words > 100 ? 'Средний' : 'Краткий'} материал
+   - Основная тема связана с: ${topWords.slice(0, 3).join(', ')}
+   - Объем: ${stats.words > 500 ? 'Развернутый' : 'Краткий'} материал
 
-2. **Какова структура?**
-   - Состоит из ${stats.paragraphs} логических блоков
-   - Содержит ${stats.sentences} аргументов/утверждений
+2. **Какие проблемы/вопросы рассматриваются?**
+   - Автор затрагивает вопросы, связанные с ${topWords.slice(0, 2).join(' и ')}
+   - Количество основных тезисов: ${stats.sentences}
 
-3. **Что самое важное?**
-   - Ключевые концепции: ${stats.topWords.slice(0, 5).join(', ')}
-   - Основная мысль в первом абзаце
+3. **Какова структура материала?**
+   - Состоит из ${stats.paragraphs} смысловых блоков
+   - Логика изложения: ${stats.paragraphs > 1 ? 'последовательная' : 'единый текст'}
 
 ## 📝 СТРУКТУРИРОВАННЫЙ КОНСПЕКТ:
 
-### Краткое содержание:
-${generateShortSummary(sentences)}
+### Основные идеи:
+${generateMainIdeas(sentences)}
 
-### Основные разделы:
-${generateSections(paragraphs)}
+### Термины и понятия:
+${topWords.map(word => `• **${word}**`).join('\n')}
 
-### Ключевые термины:
-${stats.topWords.map(word => `• **${word}**`).join('\n')}
+### Структура материала:
+${generateStructure(paragraphs)}
 
-### Что запомнить:
-${generateTakeaways(sentences)}
+### Что важно запомнить:
+1. Основную мысль первого абзаца
+2. Ключевые аргументы
+3. Заключительные выводы
 
-## 🎯 РЕКОМЕНДАЦИИ:
+## 🎯 ПРАКТИЧЕСКОЕ ПРИМЕНЕНИЕ:
 
-### Для понимания:
-1. Прочтите оригинальный текст
-2. Выделите главную мысль каждого абзаца
-3. Составьте вопросы
+### Для изучения:
+✅ Прочтите оригинальный текст
+✅ Выделите цветом ключевые моменты
+✅ Составьте вопросы по каждому разделу
 
 ### Для запоминания:
 • Перескажите своими словами
-• Создайте схему или ментальную карту
-• Обсудите с коллегами
+• Создайте ментальную карту
+• Обсудите с коллегами/одногруппниками
 
-### Для применения:
-- Где можно использовать эту информацию?
-- Какие идеи стоит развить?
-- О чем рассказать другим?
+### Для использования:
+- Примените идеи в своей работе/учебе
+- Поделитесь с другими
+- Используйте как основу для доклада
 
 ---
-📌 *Конспект создан автоматически*
-💡 *Для AI-анализа подключите API ключ*`;
-}
+💡 *Это локальный конспект. Для AI-анализа нужен API ключ.*
+✨ *Совет: сохраните конспект для повторения!*`;
+        }
 
-// Вспомогательные функции
-function generateShortSummary(sentences) {
-    if (sentences.length === 0) return "Не удалось выделить краткое содержание";
-    
-    const summarySentences = sentences.slice(0, Math.min(3, sentences.length));
-    return summarySentences.map(s => `• ${s.substring(0, 100).trim()}...`).join('\n');
-}
+        // Вспомогательные функции
+        function generateMainIdeas(sentences) {
+            if (sentences.length < 3) return "• Текст слишком короткий для выделения идей";
+            
+            const ideas = [];
+            const step = Math.max(1, Math.floor(sentences.length / 3));
+            
+            for (let i = 0; i < 3; i++) {
+                const idx = i * step;
+                if (sentences[idx]) {
+                    ideas.push(`• ${sentences[idx].substring(0, 80).trim()}...`);
+                }
+            }
+            
+            return ideas.join('\n');
+        }
 
-function generateSections(paragraphs) {
-    if (paragraphs.length === 0) return "• Единый текст без четких разделов";
-    
-    return paragraphs.slice(0, 5).map((para, idx) => {
-        const firstLine = para.split('\n')[0]?.substring(0, 60) || para.substring(0, 60);
-        return `**Раздел ${idx + 1}:** ${firstLine}...`;
-    }).join('\n');
-}
+        function generateStructure(paragraphs) {
+            if (paragraphs.length === 0) return "• Единый текст без разделения";
+            
+            const structure = [];
+            
+            if (paragraphs.length >= 1) {
+                structure.push(`1. **Введение:** ${paragraphs[0].substring(0, 60).trim()}...`);
+            }
+            
+            if (paragraphs.length >= 2) {
+                structure.push(`2. **Основная часть:** ${paragraphs[1].substring(0, 60).trim()}...`);
+            }
+            
+            if (paragraphs.length >= 3) {
+                structure.push(`3. **Развитие темы:** ${paragraphs[2].substring(0, 60).trim()}...`);
+            }
+            
+            if (paragraphs.length > 3) {
+                structure.push(`4. **... и еще ${paragraphs.length - 3} разделов**`);
+            }
+            
+            return structure.join('\n');
+        }
 
-function generateTakeaways(sentences) {
-    if (sentences.length < 3) return "• Выделите основные мысли самостоятельно";
-    
-    const takeaways = [];
-    if (sentences.length >= 1) takeaways.push(`1. "${sentences[0].substring(0, 80)}..."`);
-    if (sentences.length >= 2) takeaways.push(`2. "${sentences[Math.floor(sentences.length/2)].substring(0, 80)}..."`);
-    if (sentences.length >= 3) takeaways.push(`3. "${sentences[sentences.length-1].substring(0, 80)}..."`);
-    
-    return takeaways.join('\n');
-}
+        function getFileType(file) {
+            const types = {
+                'text/plain': 'TXT',
+                'application/pdf': 'PDF',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
+                'image/jpeg': 'JPEG',
+                'image/png': 'PNG',
+                'image/gif': 'GIF'
+            };
+            
+            return types[file.type] || file.name.split('.').pop().toUpperCase();
+        }
 
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Б';
-    const k = 1024;
-    const sizes = ['Б', 'КБ', 'МБ', 'ГБ'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' Б';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' КБ';
+            return (bytes / 1048576).toFixed(1) + ' МБ';
+        }
 
-function copyToClipboard() {
-    const text = document.getElementById('summaryText').textContent;
-    navigator.clipboard.writeText(text)
-        .then(() => alert('✅ Конспект скопирован!'))
-        .catch(() => alert('❌ Ошибка копирования'));
-}
+        function copyToClipboard() {
+            const text = document.getElementById('summaryContent').textContent;
+            navigator.clipboard.writeText(text)
+                .then(() => alert('✅ Конспект скопирован!'))
+                .catch(() => alert('❌ Ошибка копирования'));
+        }
 
-function downloadSummary() {
-    const text = document.getElementById('summaryText').textContent;
-    const blob = new Blob([text], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `конспект_${new Date().toISOString().slice(0, 10)}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
+        function downloadSummary() {
+            const text = document.getElementById('summaryContent').textContent;
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `конспект_${new Date().toLocaleDateString('ru-RU')}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
